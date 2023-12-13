@@ -12,19 +12,19 @@ import {
   HttpCode,
   SerializeOptions,
 } from '@nestjs/common';
-import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../roles/roles.decorator';
 import { RoleEnum } from '../roles/roles.enum';
 import { AuthGuard } from '@nestjs/passport';
-import { RolesGuard } from '../roles/roles.guard';
-import { infinityPagination } from '../utils/infinity-pagination';
-import { User } from './entities/user.entity';
+import { RolesGuard } from 'src/roles/roles.guard';
+import { infinityPagination } from 'src/utils/infinity-pagination';
 import { InfinityPaginationResultType } from '../utils/types/infinity-pagination-result.type';
 import { NullableType } from '../utils/types/nullable.type';
 import { QueryUserDto } from './dto/query-user.dto';
+import { UserType } from './entities/user.type';
+import { UsersServiceAbstract } from './users-abstract.service';
 
 @ApiBearerAuth()
 @Roles(RoleEnum.admin)
@@ -35,14 +35,14 @@ import { QueryUserDto } from './dto/query-user.dto';
   version: '1',
 })
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(private readonly usersService: UsersServiceAbstract) {}
 
   @SerializeOptions({
     groups: ['admin'],
   })
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  create(@Body() createProfileDto: CreateUserDto): Promise<User> {
+  create(@Body() createProfileDto: CreateUserDto): Promise<UserType> {
     return this.usersService.create(createProfileDto);
   }
 
@@ -53,7 +53,7 @@ export class UsersController {
   @HttpCode(HttpStatus.OK)
   async findAll(
     @Query() query: QueryUserDto,
-  ): Promise<InfinityPaginationResultType<User>> {
+  ): Promise<InfinityPaginationResultType<UserType>> {
     const page = query?.page ?? 1;
     let limit = query?.limit ?? 10;
     if (limit > 50) {
@@ -78,8 +78,8 @@ export class UsersController {
   })
   @Get(':id')
   @HttpCode(HttpStatus.OK)
-  findOne(@Param('id') id: string): Promise<NullableType<User>> {
-    return this.usersService.findOne({ id: +id });
+  findOne(@Param('id') id: UserType['id']): Promise<NullableType<UserType>> {
+    return this.usersService.findOne({ id });
   }
 
   @SerializeOptions({
@@ -88,15 +88,15 @@ export class UsersController {
   @Patch(':id')
   @HttpCode(HttpStatus.OK)
   update(
-    @Param('id') id: number,
+    @Param('id') id: UserType['id'],
     @Body() updateProfileDto: UpdateUserDto,
-  ): Promise<User> {
+  ): Promise<UserType | null> {
     return this.usersService.update(id, updateProfileDto);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  remove(@Param('id') id: number): Promise<void> {
+  remove(@Param('id') id: UserType['id']): Promise<void> {
     return this.usersService.softDelete(id);
   }
 }

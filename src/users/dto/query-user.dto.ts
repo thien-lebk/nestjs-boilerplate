@@ -1,5 +1,4 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Role } from '../../roles/entities/role.entity';
 import {
   IsNumber,
   IsOptional,
@@ -7,20 +6,21 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Transform, Type, plainToInstance } from 'class-transformer';
-import { User } from '../entities/user.entity';
+import { UserType } from '../entities/user.type';
+import { RoleDto } from 'src/roles/dto/role.dto';
 
 export class FilterUserDto {
-  @ApiProperty({ type: Role })
+  @ApiProperty({ type: RoleDto })
   @IsOptional()
   @ValidateNested({ each: true })
-  @Type(() => Role)
-  roles?: Role[] | null;
+  @Type(() => RoleDto)
+  roles?: RoleDto[] | null;
 }
 
 export class SortUserDto {
   @ApiProperty()
   @IsString()
-  orderBy: keyof User;
+  orderBy: keyof UserType;
 
   @ApiProperty()
   @IsString()

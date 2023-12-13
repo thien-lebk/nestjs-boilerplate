@@ -8,19 +8,16 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
-  BeforeInsert,
-  BeforeUpdate,
 } from 'typeorm';
 import { Role } from '../../roles/entities/role.entity';
 import { Status } from '../../statuses/entities/status.entity';
 import { FileEntity } from '../../files/entities/file.entity';
-import bcrypt from 'bcryptjs';
-import { EntityHelper } from '../../utils/entity-helper';
-import { AuthProvidersEnum } from '../../auth/auth-providers.enum';
+import { EntityRelationalHelper } from 'src/utils/relational-entity-helper';
+import { AuthProvidersEnum } from 'src/auth/auth-providers.enum';
 import { Exclude, Expose } from 'class-transformer';
 
 @Entity()
-export class User extends EntityHelper {
+export class User extends EntityRelationalHelper {
   @PrimaryGeneratedColumn()
   id: number;
 
@@ -40,15 +37,6 @@ export class User extends EntityHelper {
   @AfterLoad()
   public loadPreviousPassword(): void {
     this.previousPassword = this.password;
-  }
-
-  @BeforeInsert()
-  @BeforeUpdate()
-  async setPassword() {
-    if (this.previousPassword !== this.password && this.password) {
-      const salt = await bcrypt.genSalt();
-      this.password = await bcrypt.hash(this.password, salt);
-    }
   }
 
   @Column({ default: AuthProvidersEnum.email })

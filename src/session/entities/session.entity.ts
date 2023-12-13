@@ -7,10 +7,11 @@ import {
   DeleteDateColumn,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
-import { EntityHelper } from '../../utils/entity-helper';
+import { EntityRelationalHelper } from 'src/utils/relational-entity-helper';
+import { SessionType } from './session.type';
 
 @Entity()
-export class Session extends EntityHelper {
+export class Session extends EntityRelationalHelper implements SessionType {
   @PrimaryGeneratedColumn()
   id: number;
 

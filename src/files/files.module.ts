@@ -8,12 +8,22 @@ import { S3Client } from '@aws-sdk/client-s3';
 import multerS3 from 'multer-s3';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { FileEntity } from './entities/file.entity';
-import { FilesService } from './files.service';
+import { FilesRelationalService } from './files-relational.service';
 import { AllConfigType } from 'src/config/config.type';
+import { MongooseModule } from '@nestjs/mongoose';
+import { FileSchema, FileSchemaClass } from './entities/file.schema';
+import { FilesDocumentService } from './files-document.service';
+import { FilesServiceAbstract } from './files-abstract.service';
+import databaseConfig from 'src/database/config/database.config';
+import { DatabaseConfig } from 'src/database/config/database-config.type';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([FileEntity]),
+    (databaseConfig() as DatabaseConfig).isDocumentDatabase
+      ? MongooseModule.forFeature([
+          { name: FileSchemaClass.name, schema: FileSchema },
+        ])
+      : TypeOrmModule.forFeature([FileEntity]),
     MulterModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -97,6 +107,16 @@ import { AllConfigType } from 'src/config/config.type';
     }),
   ],
   controllers: [FilesController],
-  providers: [ConfigModule, ConfigService, FilesService],
+  providers: [
+    ConfigModule,
+    ConfigService,
+    {
+      provide: FilesServiceAbstract,
+      useClass: (databaseConfig() as DatabaseConfig).isDocumentDatabase
+        ? FilesDocumentService
+        : FilesRelationalService,
+    },
+  ],
+  exports: [FilesServiceAbstract],
 })
 export class FilesModule {}

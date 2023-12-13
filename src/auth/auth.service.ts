@@ -10,31 +10,29 @@ import { User } from '../users/entities/user.entity';
 import bcrypt from 'bcryptjs';
 import { AuthEmailLoginDto } from './dto/auth-email-login.dto';
 import { AuthUpdateDto } from './dto/auth-update.dto';
-import { RoleEnum } from '../roles/roles.enum';
-import { StatusEnum } from '../statuses/statuses.enum';
-import { plainToClass } from 'class-transformer';
-import { Status } from '../statuses/entities/status.entity';
-import { Role } from '../roles/entities/role.entity';
+import { RoleEnum } from 'src/roles/roles.enum';
+import { StatusEnum } from 'src/statuses/statuses.enum';
 import { AuthProvidersEnum } from './auth-providers.enum';
 import { SocialInterface } from '../social/interfaces/social.interface';
 import { AuthRegisterLoginDto } from './dto/auth-register-login.dto';
-import { UsersService } from '../users/users.service';
-import { MailService } from '../mail/mail.service';
+import { MailService } from 'src/mail/mail.service';
 import { NullableType } from '../utils/types/nullable.type';
 import { LoginResponseType } from './types/login-response.type';
 import { ConfigService } from '@nestjs/config';
-import { AllConfigType } from '../config/config.type';
-import { SessionService } from '../session/session.service';
+import { AllConfigType } from 'src/config/config.type';
 import { JwtRefreshPayloadType } from './strategies/types/jwt-refresh-payload.type';
-import { Session } from '../session/entities/session.entity';
 import { JwtPayloadType } from './strategies/types/jwt-payload.type';
+import { UserType } from 'src/users/entities/user.type';
+import { SessionType } from 'src/session/entities/session.type';
+import { UsersServiceAbstract } from 'src/users/users-abstract.service';
+import { SessionAbstractService } from 'src/session/session-abstract.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     private jwtService: JwtService,
-    private usersService: UsersService,
-    private sessionService: SessionService,
+    private usersService: UsersServiceAbstract,
+    private sessionService: SessionAbstractService,
     private mailService: MailService,
     private configService: ConfigService<AllConfigType>,
   ) {}
@@ -107,9 +105,9 @@ export class AuthService {
     authProvider: string,
     socialData: SocialInterface,
   ): Promise<LoginResponseType> {
-    let user: NullableType<User> = null;
+    let user: NullableType<UserType> = null;
     const socialEmail = socialData.email?.toLowerCase();
-    let userByEmail: NullableType<User> = null;
+    let userByEmail: NullableType<UserType> = null;
 
     if (socialEmail) {
       userByEmail = await this.usersService.findOne({
@@ -132,12 +130,12 @@ export class AuthService {
     } else if (userByEmail) {
       user = userByEmail;
     } else {
-      const role = plainToClass(Role, {
+      const role = {
         id: RoleEnum.user,
-      });
-      const status = plainToClass(Status, {
+      };
+      const status = {
         id: StatusEnum.active,
-      });
+      };
 
       user = await this.usersService.create({
         email: socialEmail ?? null,
@@ -150,7 +148,7 @@ export class AuthService {
       });
 
       user = await this.usersService.findOne({
-        id: user.id,
+        id: user?.id,
       });
     }
 
@@ -194,10 +192,10 @@ export class AuthService {
       email: dto.email,
       role: {
         id: RoleEnum.user,
-      } as Role,
+      },
       status: {
         id: StatusEnum.inactive,
-      } as Status,
+      },
     });
 
     const hash = await this.jwtService.signAsync(
@@ -261,10 +259,11 @@ export class AuthService {
       );
     }
 
-    user.status = plainToClass(Status, {
+    user.status = {
       id: StatusEnum.active,
-    });
-    await user.save();
+    };
+
+    await this.usersService.update(user.id, user);
   }
 
   async forgotPassword(email: string): Promise<void> {
@@ -354,10 +353,11 @@ export class AuthService {
         id: user.id,
       },
     });
-    await user.save();
+
+    await this.usersService.update(user.id, user);
   }
 
-  async me(userJwtPayload: JwtPayloadType): Promise<NullableType<User>> {
+  async me(userJwtPayload: JwtPayloadType): Promise<NullableType<UserType>> {
     return this.usersService.findOne({
       id: userJwtPayload.id,
     });
@@ -366,7 +366,7 @@ export class AuthService {
   async update(
     userJwtPayload: JwtPayloadType,
     userDto: AuthUpdateDto,
-  ): Promise<NullableType<User>> {
+  ): Promise<NullableType<UserType>> {
     if (userDto.password) {
       if (!userDto.oldPassword) {
         throw new HttpException(
@@ -432,9 +432,7 @@ export class AuthService {
     data: Pick<JwtRefreshPayloadType, 'sessionId'>,
   ): Promise<Omit<LoginResponseType, 'user'>> {
     const session = await this.sessionService.findOne({
-      where: {
-        id: data.sessionId,
-      },
+      id: data.sessionId,
     });
 
     if (!session) {
@@ -465,9 +463,9 @@ export class AuthService {
   }
 
   private async getTokensData(data: {
-    id: User['id'];
-    role: User['role'];
-    sessionId: Session['id'];
+    id: UserType['id'];
+    role: UserType['role'];
+    sessionId: SessionType['id'];
   }) {
     const tokenExpiresIn = this.configService.getOrThrow('auth.expires', {
       infer: true,

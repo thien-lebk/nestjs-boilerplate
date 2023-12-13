@@ -1,15 +1,35 @@
 import { Module } from '@nestjs/common';
-import { UsersService } from './users.service';
+
 import { UsersController } from './users.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
-import { IsExist } from '../utils/validators/is-exists.validator';
-import { IsNotExist } from '../utils/validators/is-not-exists.validator';
+import { MongooseModule } from '@nestjs/mongoose';
+import { UserSchema, UserSchemaClass } from './entities/user.schema';
+import { UsersRelationalService } from './users-relational.service';
+import { UsersDocumentService } from './users-document.service';
+import { UsersServiceAbstract } from './users-abstract.service';
+import { FilesModule } from 'src/files/files.module';
+import databaseConfig from 'src/database/config/database.config';
+import { DatabaseConfig } from 'src/database/config/database-config.type';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User])],
+  imports: [
+    (databaseConfig() as DatabaseConfig).isDocumentDatabase
+      ? MongooseModule.forFeature([
+          { name: UserSchemaClass.name, schema: UserSchema },
+        ])
+      : TypeOrmModule.forFeature([User]),
+    FilesModule,
+  ],
   controllers: [UsersController],
-  providers: [IsExist, IsNotExist, UsersService],
-  exports: [UsersService],
+  providers: [
+    {
+      provide: UsersServiceAbstract,
+      useClass: (databaseConfig() as DatabaseConfig).isDocumentDatabase
+        ? UsersDocumentService
+        : UsersRelationalService,
+    },
+  ],
+  exports: [UsersServiceAbstract],
 })
 export class UsersModule {}
